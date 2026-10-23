@@ -1,0 +1,62 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "asf_home_electrification/__init__.py"
+
+[project]
+name = "asf_home_electrification"
+dynamic = ["version"]
+description = "Analytical model of home electrification with low-carbon technology"
+authors = [{ name = "Nesta" }]
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = "==3.13.*"
+dependencies = []
+
+[dependency-groups]
+dev = ["ipykernel", "jupytext", "nbstripout", "ruff", "pre-commit"]
+
+[tool.uv]
+package = true
+
+# Emit `.pre-commit-config.yaml` in prettier's style so the two hooks don't fight.
+[tool.pre-commit-update.yaml]
+mapping = 2
+sequence = 4
+offset = 2
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "ANN", # flake8-annotations
+    "B",   # flake8-bugbear: Likely bugs
+    "C",   # flake8-comprehensions and mccabe complexity
+    "E",   # pycodestyle: Errors (default)
+    "F",   # pyflakes: Linter
+    "I",   # isort
+    "N",   # pep8-naming: Naming conventions
+    "W",   # pycodestyle: Warnings (default)
+]
+ignore = [
+    "D100", # Warns about missing module-level docstrings
+    "S101", # Warns about assert being removed when compiled
+    "ANN002", # Warns about missing type annotation on *args
+    "ANN003", # Warns about missing type annotation on **kwargs
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["asf_home_electrification"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401", "E402", "D104"]
+
+[tool.ruff.format]
+docstring-code-format = true
+docstring-code-line-length = "dynamic"
