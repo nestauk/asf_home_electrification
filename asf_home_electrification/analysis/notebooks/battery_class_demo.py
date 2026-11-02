@@ -57,7 +57,7 @@ price_cap_standing_charge = 54.83  # p / day
 
 n_days = elexon_profile_class_1["Settlement Date"].nunique()  # 365 for 2025
 
-baseline_annual_bill = (annual_electricity_use_kwh * price_cap_rate + n_days * price_cap_standing_charge) / 100  # £
+baseline_annual_bill = (demand_profile.values.sum() * price_cap_rate + n_days * price_cap_standing_charge) / 100  # £
 baseline_annual_bill
 
 # %% [markdown]
@@ -105,13 +105,8 @@ go_import_price_profile = (
 # Octopus Agile
 
 # %%
-# # Run this first time only
-# df = octopus_tariffs.get_agile_rates(region="E", start_date="2025-01-01", end_date="2026-01-01")
-# df.to_pickle("agile_region_E_2025.pkl")
-
-# %%
 # Unit rates
-agile_import_price = pd.read_pickle("agile_region_E_2025.pkl")
+agile_import_price = octopus_tariffs.get_agile_rates(region="E", start_date="2025-01-01", end_date="2026-01-01")
 
 # Create clean date column
 agile_import_price["valid_from"] = pd.to_datetime(agile_import_price["valid_from"])
@@ -493,12 +488,7 @@ create_battery_modelling_results_chart(
 # Octopus Agile - export
 
 # %%
-# # Run this first time only
-# df = octopus_tariffs.get_agile_export_rates(region="E", start_date="2025-01-01", end_date="2026-01-01")
-# df.to_pickle("agile_export_region_E_2025.pkl")
-
-# %%
-agile_export_price = pd.read_pickle("agile_export_region_E_2025.pkl")
+agile_export_price = octopus_tariffs.get_agile_export_rates(region="E", start_date="2025-01-01", end_date="2026-01-01")
 
 # Create clean date column
 agile_export_price["valid_from"] = pd.to_datetime(agile_export_price["valid_from"])

@@ -38,21 +38,21 @@ class Battery:
         """Initialise a battery with its technical parameters and starting charge.
 
         Args:
-            capacity_kwh: Total energy storage capacity in kWh.
-            max_power_kw: Maximum charge/discharge power in kW.
-            lifespan_years: Expected battery lifespan in years.
-            cycle_life: Rated number of full charge-discharge cycles
+            capacity_kwh (float): Total energy storage capacity in kWh.
+            max_power_kw (float): Maximum charge/discharge power in kW.
+            lifespan_years (float): Expected battery lifespan in years.
+            cycle_life (float): Rated number of full charge-discharge cycles
                 before the battery reaches end of life.
-            charge_efficiency: Fraction of input energy stored when charging,
-                between 0 and 1.
-            discharge_efficiency: Fraction of stored energy delivered when
-                discharging, between 0 and 1.
-            state_of_charge_min_frac: Minimum allowed state of charge as a
-                fraction of total capacity, between 0 and 1.
-            state_of_charge_max_frac: Maximum allowed state of charge as a
-                fraction of total capacity, between 0 and 1.
-            state_of_charge_init_frac: Initial state of charge as a fraction
-                of total capacity, between the minimum and maximum.
+            charge_efficiency (float): Fraction of input energy stored when
+                charging, between 0 and 1.
+            discharge_efficiency (float): Fraction of stored energy delivered
+                when discharging, between 0 and 1.
+            state_of_charge_min_frac (float): Minimum allowed state of charge
+                as a fraction of total capacity, between 0 and 1.
+            state_of_charge_max_frac (float): Maximum allowed state of charge
+                as a fraction of total capacity, between 0 and 1.
+            state_of_charge_init_frac (float): Initial state of charge as a
+                fraction of total capacity, between the minimum and maximum.
 
         Raises:
             ValueError: If the state-of-charge fractions are inconsistent.
@@ -143,17 +143,19 @@ class Battery:
         `starting_charge_kwh` and its state carries across days within the run.
 
         Args:
-            demand_profile: Household demand per interval in kWh.
-            import_price_profile: Electricity import price per interval in p/kWh.
-            charge_schedule: Per interval: 1 to charge, -1 to discharge,
-                0 to stay idle.
-            delta_t: Interval length in hours. Defaults to 0.5 (half-hourly).
+            demand_profile (pd.Series): Household demand per interval in kWh.
+            import_price_profile (pd.Series): Electricity import price per
+                interval in p/kWh.
+            charge_schedule (pd.Series): Per interval: 1 to charge, -1 to
+                discharge, 0 to stay idle.
+            delta_t (float): Interval length in hours. Defaults to 0.5
+                (half-hourly).
 
         Returns:
-            One row per interval, on the same index as the inputs, with
-            columns: demand_kwh, soc_kwh (end of interval), charge_kwh
-            (drawn from the grid), discharge_kwh (delivered to the home),
-            grid_import_kwh, import_price_p_per_kwh and cost_p (pence).
+            pd.DataFrame: One row per interval, on the same index as the
+            inputs, with columns: demand_kwh, soc_kwh (end of interval),
+            charge_kwh (drawn from the grid), discharge_kwh (delivered to the
+            home), grid_import_kwh, import_price_p_per_kwh and cost_p (pence).
 
         Raises:
             ValueError: If the inputs do not share the same DatetimeIndex, or
@@ -166,6 +168,9 @@ class Battery:
             raise ValueError("Inputs must share the same index.")
         if not isinstance(demand_profile.index, pd.DatetimeIndex):
             raise ValueError("Inputs must be indexed by a DatetimeIndex.")
+        expected_spacing = pd.Timedelta(hours=delta_t)
+        if not demand_profile.index.to_series().diff().dropna().eq(expected_spacing).all():
+            raise ValueError(f"Index must be regular with intervals of exactly {delta_t} hours (delta_t).")
         if not charge_schedule.isin([-1, 0, 1]).all():
             raise ValueError("charge_schedule must contain only -1, 0 and 1.")
 
@@ -254,15 +259,18 @@ class Battery:
         demand since export is not modelled.
 
         Args:
-            demand_profile: Household demand per interval in kWh.
-            import_price_profile: Electricity import price per interval in p/kWh.
-            delta_t: Interval length in hours. Defaults to 0.5 (half-hourly).
+            demand_profile (pd.Series): Household demand per interval in kWh.
+            import_price_profile (pd.Series): Electricity import price per
+                interval in p/kWh.
+            delta_t (float): Interval length in hours. Defaults to 0.5
+                (half-hourly).
 
         Returns:
-            One row per interval, on the same index as the inputs, with
-            columns: demand_kwh, soc_kwh (end of interval), charge_kwh
-            (drawn from the grid), discharge_kwh (discharged to meet demand),
-            grid_import_kwh, import_price_p_per_kwh and cost_p (pence).
+            pd.DataFrame: One row per interval, on the same index as the
+            inputs, with columns: demand_kwh, soc_kwh (end of interval),
+            charge_kwh (drawn from the grid), discharge_kwh (discharged to
+            meet demand), grid_import_kwh, import_price_p_per_kwh and cost_p
+            (pence).
 
         Raises:
             ValueError: If the inputs do not share the same DatetimeIndex.
@@ -272,6 +280,9 @@ class Battery:
             raise ValueError("Inputs must share the same index.")
         if not isinstance(demand_profile.index, pd.DatetimeIndex):
             raise ValueError("Inputs must be indexed by a DatetimeIndex.")
+        expected_spacing = pd.Timedelta(hours=delta_t)
+        if not demand_profile.index.to_series().diff().dropna().eq(expected_spacing).all():
+            raise ValueError(f"Index must be regular with intervals of exactly {delta_t} hours (delta_t).")
 
         demand = demand_profile.to_numpy(dtype=float)
         prices = import_price_profile.to_numpy(dtype=float)
@@ -380,16 +391,19 @@ class Battery:
         battery, and charging energy can only come from the grid.
 
         Args:
-            demand_profile: Household demand per interval in kWh.
-            import_price_profile: Electricity import price per interval in p/kWh.
-            export_price_profile: Electricity export price per interval in p/kWh.
-            delta_t: Interval length in hours. Defaults to 0.5 (half-hourly).
+            demand_profile (pd.Series): Household demand per interval in kWh.
+            import_price_profile (pd.Series): Electricity import price per
+                interval in p/kWh.
+            export_price_profile (pd.Series): Electricity export price per
+                interval in p/kWh.
+            delta_t (float): Interval length in hours. Defaults to 0.5
+                (half-hourly).
 
         Returns:
-            One row per interval, on the same index as the inputs, with
-            columns: demand_kwh, soc_kwh (end of interval), charge_kwh
-            (drawn from the grid), discharge_kwh (delivered to the home or
-            exported), grid_import_kwh, grid_export_kwh,
+            pd.DataFrame: One row per interval, on the same index as the
+            inputs, with columns: demand_kwh, soc_kwh (end of interval),
+            charge_kwh (drawn from the grid), discharge_kwh (delivered to the
+            home or exported), grid_import_kwh, grid_export_kwh,
             import_price_p_per_kwh, export_price_p_per_kwh, import_cost_p,
             export_revenue_p and cost_p (net cost: import cost minus export
             revenue). Cost columns are in pence.
@@ -405,6 +419,9 @@ class Battery:
             raise ValueError("Inputs must share the same index.")
         if not isinstance(demand_profile.index, pd.DatetimeIndex):
             raise ValueError("Inputs must be indexed by a DatetimeIndex.")
+        expected_spacing = pd.Timedelta(hours=delta_t)
+        if not demand_profile.index.to_series().diff().dropna().eq(expected_spacing).all():
+            raise ValueError(f"Index must be regular with intervals of exactly {delta_t} hours (delta_t).")
 
         demand = demand_profile.to_numpy(dtype=float)
         import_prices = import_price_profile.to_numpy(dtype=float)
