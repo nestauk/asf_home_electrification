@@ -1,8 +1,18 @@
+"""
+Getters for solar energy radiation and PV performance data from PVGIS.
+
+Documentation: https://joint-research-centre.ec.europa.eu/photovoltaic-geographical-information-system-pvgis/using-pvgis-5/api-non-interactive-service_en
+"""
+
 import pandas as pd
 import requests
 
+# Years covered by the PVGIS data version in use
+PVGIS_FIRST_YEAR = 2005
+PVGIS_LAST_YEAR = 2023
 
-def get_solar_half_hourly_radiation(
+
+def get_hourly_radiation_data(
     lat: float,
     lon: float,
     peakpower: float,
@@ -30,19 +40,4 @@ def get_solar_half_hourly_radiation(
     response = requests.get(url, params=params)
     data = response.json()
 
-    df = pd.DataFrame(data["outputs"]["hourly"])
-    df["time"] = pd.to_datetime(df["time"], format="%Y%m%d:%H%M")
-    df = df.rename(columns={"P": "generation_W"})
-    df["generation_kWh"] = df["generation_W"] / 1000  # hourly W -> kWh
-
-    # Create a proper half-hourly index for one year
-    hh_index = pd.date_range("2005-01-01 00:00", "2023-12-31 23:30", freq="30min")
-
-    # Each hourly value splits equally across two half-hour periods
-    df_hh = df.loc[df.index.repeat(2)].reset_index(drop=True)
-    df_hh["generation_kWh"] = df_hh["generation_kWh"] / 2
-    df_hh["time"] = hh_index
-
-    df_hh = df_hh.set_index("time")
-
-    return df_hh
+    return pd.DataFrame(data["outputs"]["hourly"])
