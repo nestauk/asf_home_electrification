@@ -42,6 +42,19 @@ class SolarPV:
         self.aspect = aspect
         self.angle = angle
 
+    def __repr__(self) -> str:
+        """Return a string representation of the PV system's parameters."""
+        return (
+            f"{type(self).__name__}("
+            f"peak_power_kw={self.peak_power_kw}, "
+            f"lat={self.lat}, "
+            f"lon={self.lon}, "
+            f"loss={self.loss}, "
+            f"mounting_place={self.mounting_place!r}, "
+            f"aspect={self.aspect}, "
+            f"angle={self.angle})"
+        )
+
     def half_hourly_pvgis_data(self, year: int) -> pd.DataFrame:
         """Half-hourly PV generation and weather data for one year of PVGIS data.
 
@@ -216,39 +229,41 @@ class SolarPV:
         if not isinstance(demand_profile.index, pd.DatetimeIndex):
             raise ValueError("Inputs must be indexed by a DatetimeIndex.")
 
-        # Construction solar radiation profile series
-        solar_generation_profile = self.generation_profile(index=demand_profile.index)
-
-        # Construct household energy balance dataframe
-        energy_balance = pd.DataFrame(index=demand_profile.index)
-        energy_balance["demand_kwh"] = demand_profile.values
-        energy_balance["solar_generation_kwh"] = solar_generation_profile.values
+        demand = demand_profile.to_numpy(dtype=float)
+        generation = self.generation_profile(index=demand_profile.index).to_numpy(dtype=float)
+        import_prices = import_price_profile.to_numpy(dtype=float)
+        export_prices = export_price_profile.to_numpy(dtype=float)
 
         # Self consumption is the lesser of generation and demand
-        energy_balance["self_consumption_kwh"] = energy_balance[["demand_kwh", "solar_generation_kwh"]].min(axis=1)
+        self_consumption = np.minimum(demand, generation)
 
-        # Export is any surplus generation beyond what can be self consumed
-        energy_balance["grid_export_kwh"] = np.where(
-            export_price_profile.to_numpy() < 0,
-            0.0,  # curtail if export prices are negative
-            energy_balance["solar_generation_kwh"] - energy_balance["self_consumption_kwh"],
-        )
+        # Surplus generation is exported, unless the export price is negative
+        surplus = generation - self_consumption
+        grid_export = np.where(export_prices < 0, 0.0, surplus)
+        curtailed = surplus - grid_export
 
         # Grid import is any demand not met by self consumption
-        energy_balance["grid_import_kwh"] = energy_balance["demand_kwh"] - energy_balance["self_consumption_kwh"]
+        grid_import = demand - self_consumption
 
-        # Import and export prices and costs
-        energy_balance["import_price_p_per_kwh"] = import_price_profile.values
-        energy_balance["export_price_p_per_kwh"] = export_price_profile.values
+        import_cost = grid_import * import_prices
+        export_revenue = grid_export * export_prices
 
-        energy_balance["import_cost_p"] = energy_balance["import_price_p_per_kwh"] * energy_balance["grid_import_kwh"]
-        energy_balance["export_revenue_p"] = (
-            energy_balance["export_price_p_per_kwh"] * energy_balance["grid_export_kwh"]
+        return pd.DataFrame(
+            {
+                "demand_kwh": demand,
+                "solar_generation_kwh": generation,
+                "self_consumption_kwh": self_consumption,
+                "grid_import_kwh": grid_import,
+                "grid_export_kwh": grid_export,
+                "curtailed_kwh": curtailed,
+                "import_price_p_per_kwh": import_prices,
+                "export_price_p_per_kwh": export_prices,
+                "import_cost_p": import_cost,
+                "export_revenue_p": export_revenue,
+                "cost_p": import_cost - export_revenue,
+            },
+            index=demand_profile.index,
         )
-
-        energy_balance["cost_p"] = energy_balance["import_cost_p"] - energy_balance["export_revenue_p"]
-
-        return energy_balance
 
     def run_household_energy_balance_no_export(
         self,
@@ -289,27 +304,31 @@ class SolarPV:
         if not isinstance(demand_profile.index, pd.DatetimeIndex):
             raise ValueError("Inputs must be indexed by a DatetimeIndex.")
 
-        # Construction solar radiation profile series
-        solar_generation_profile = self.generation_profile(index=demand_profile.index)
-
-        # Construct household energy balance dataframe
-        energy_balance = pd.DataFrame(index=demand_profile.index)
-        energy_balance["demand_kwh"] = demand_profile.values
-        energy_balance["solar_generation_kwh"] = solar_generation_profile.values
+        demand = demand_profile.to_numpy(dtype=float)
+        generation = self.generation_profile(index=demand_profile.index).to_numpy(dtype=float)
+        import_prices = import_price_profile.to_numpy(dtype=float)
 
         # Self consumption is the lesser of generation and demand
-        energy_balance["self_consumption_kwh"] = energy_balance[["demand_kwh", "solar_generation_kwh"]].min(axis=1)
+        self_consumption = np.minimum(demand, generation)
 
         # Curtailment is any surplus generation beyond what can be self consumed
-        energy_balance["curtailed_kwh"] = (
-            energy_balance["solar_generation_kwh"] - energy_balance["self_consumption_kwh"]
-        )
+        curtailed = generation - self_consumption
 
         # Grid import is any demand not met by self consumption
-        energy_balance["grid_import_kwh"] = energy_balance["demand_kwh"] - energy_balance["self_consumption_kwh"]
+        grid_import = demand - self_consumption
 
-        # Import prices and costs
-        energy_balance["import_price_p_per_kwh"] = import_price_profile.values
-        energy_balance["import_cost_p"] = energy_balance["import_price_p_per_kwh"] * energy_balance["grid_import_kwh"]
+        import_cost = grid_import * import_prices
 
-        return energy_balance
+        return pd.DataFrame(
+            {
+                "demand_kwh": demand,
+                "solar_generation_kwh": generation,
+                "self_consumption_kwh": self_consumption,
+                "curtailed_kwh": curtailed,
+                "grid_import_kwh": grid_import,
+                "import_price_p_per_kwh": import_prices,
+                "import_cost_p": import_cost,
+                "cost_p": import_cost,  # no export so net cost is import cost
+            },
+            index=demand_profile.index,
+        )
