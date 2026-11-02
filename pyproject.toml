@@ -20,6 +20,7 @@ dependencies = [
     "pulp[cbc]>=4.2.0",
     "pyarrow>=26.0.0",
     "requests>=2.34.2",
+    "s3fs>=2026.9.0",
 ]
 
 [dependency-groups]

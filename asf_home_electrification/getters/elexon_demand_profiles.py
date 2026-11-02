@@ -1,12 +1,11 @@
 import pandas as pd
 
-from asf_home_electrification import PROJECT_DIR
+ELEXON_COEFFICIENTS_S3_URI = (
+    "s3://asf-home-electrification/inputs/demand_profiles/elexon/Default_Period_Profile_Class_Coefficient_375.csv"
+)
 
 
-# TODO this is a temporary location until we decide which demand profiles we want to use
-# then those can be stored in S3
-def get_raw_elexon_profile_coefficients() -> pd.DataFrame:
-    path = PROJECT_DIR / "asf_home_electrification" / "config" / "Default_Period_Profile_Class_Coefficient_375.csv"
+def get_raw_elexon_profile_coefficients(path: str = ELEXON_COEFFICIENTS_S3_URI) -> pd.DataFrame:
     return pd.read_csv(path)
 
 
