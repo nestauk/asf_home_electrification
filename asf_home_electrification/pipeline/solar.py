@@ -11,8 +11,8 @@ class SolarPV:
         lat: float,
         lon: float,
         loss: float,
-        mounting_place: str,  # "free" or "building"
-        aspect: float,  # 0=south 90=west -90=east
+        mounting_place: str,
+        aspect: float,
         angle: float,
     ) -> None:
         """Initialise a solar PV system with its technical parameters and orientation.
@@ -98,7 +98,7 @@ class SolarPV:
         if not pvgis.PVGIS_FIRST_YEAR <= year <= pvgis.PVGIS_LAST_YEAR:
             raise ValueError(f"PVGIS data covers {pvgis.PVGIS_FIRST_YEAR} to {pvgis.PVGIS_LAST_YEAR}, got {year}.")
 
-        pvgis_output = pvgis.get_hourly_radiation_data(
+        pvgis_output = pvgis.get_hourly_pvgis_data(
             lat=self.lat,
             lon=self.lon,
             peakpower=self.peak_power_kw,
