@@ -1,3 +1,16 @@
+# -*- coding: utf-8 -*-
+# ---
+# jupyter:
+#   jupytext:
+#     cell_metadata_filter: -all
+#     custom_cell_magics: kql
+#     text_representation:
+#       extension: .py
+#       format_name: percent
+#       format_version: '1.3'
+#       jupytext_version: 1.11.2
+# ---
+
 # %%
 import pandas as pd
 
@@ -371,7 +384,7 @@ print(
 # ## 3. Running the solar and battery system with cost optimiser, with export enabled
 
 # %%
-optimisation_export_run = my_system.run_solar_cost_optimisation_with_export(
+optimisation_export_run = my_system.run_cost_optimisation_with_export(
     demand_profile=demand_profile,
     import_price_profile=flux_import_price_profile,
     export_price_profile=flux_export_price_profile,
@@ -446,7 +459,7 @@ print(
 # ## 4. Running the solar and battery system with cost optimiser, without exports
 
 # %%
-optimisation_no_export_run = my_system.run_solar_cost_optimisation_no_export(
+optimisation_no_export_run = my_system.run_cost_optimisation_no_export(
     demand_profile=demand_profile,
     import_price_profile=flux_import_price_profile,
 )

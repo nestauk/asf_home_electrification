@@ -364,7 +364,7 @@ class SolarBatterySystem:
             index=demand_profile.index,
         )
 
-    def run_solar_cost_optimisation_with_export(
+    def run_cost_optimisation_with_export(
         self,
         demand_profile: pd.Series,
         import_price_profile: pd.Series,
@@ -546,7 +546,7 @@ class SolarBatterySystem:
             index=demand_profile.index,
         )
 
-    def run_solar_cost_optimisation_no_export(
+    def run_cost_optimisation_no_export(
         self,
         demand_profile: pd.Series,
         import_price_profile: pd.Series,
