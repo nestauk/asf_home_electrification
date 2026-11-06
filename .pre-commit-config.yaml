@@ -1,3 +1,6 @@
+default_language_version:
+  node: lts
+
 repos:
   - repo: https://gitlab.com/vojko.pribudic.foss/pre-commit-update
     rev: v0.10.0

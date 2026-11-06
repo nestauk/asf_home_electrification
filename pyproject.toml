@@ -36,7 +36,8 @@ testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-v --strict-markers"
 markers = [
-    "schedule: tests realted to WeightingSchedule objects.",
+    "schedule: tests related to WeightingSchedule objects.",
+    "cost_curve: tests related to cost curve objects."
 ]
 
 [tool.ruff]
