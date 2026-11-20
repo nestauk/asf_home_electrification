@@ -56,12 +56,12 @@ la_stats.loc[lambda df: df['Code'].str.startswith("Unallocated"), 'Code'] = "Una
 
 # %%
 # lsoas in England and Wales
-url = "https://geoportal.statistics.gov.uk/api/download/v1/items/b8263c2364e9452483a0e5783c6fdb53/shapefile?layers=0"
+url = "https://stg-arcgisazurecdataprodeu1.az.arcgis.com/exportfiles-7729-228/2021_LSOA_Boundary_3858401303807474165.zip?sv=2026-06-06&st=2026-11-20T10%3A07%3A17Z&se=2026-11-20T11%3A12%3A17Z&sr=b&sp=r&sig=k7gIyiApusZahCFFA8WzSZtEzIQY3GSkGdeWomWEZOY%3D"
 
 res = requests.get(url)
 
 if res.status_code == 200:
-    lsoas = geopandas.read_file(io.BytesIO(res.content)).loc[:,['LSOA21CD', 'LSOA21NM', 'geometry']].rename(columns={'LSOA21CD':'zonecode', 'LSOA21NM':'zonename'})
+    lsoas = geopandas.read_file(io.BytesIO(res.content)).loc[:,['CODE', 'NAME', 'geometry']].rename(columns={'CODE':'zonecode', 'NAME':'zonename'})
 
 # %%
 # Datazones in Scotland
@@ -94,20 +94,20 @@ def dno_area_selector(df):
     if len(df) == 1:
         return {df['Name'].values[0]: 1}
     elif len(df) == 2:
-        areas = df.area / df.area.sum()
-        if areas.max() > 0.90:
-            return {df.loc[lambda df: df.area == df.area.max(), 'Name'].values[0]: 1}
-        return {df['Name'].values[0]: areas.values[0], df['Name'].values[1]: areas.values[1]}
+        df = df.assign(area = lambda df: df.area / df.area.sum())
+        if df['area'].max() > 0.90:
+            return {df.loc[lambda df: df['area'] == df['area'].max(), 'Name'].values[0]: 1}
+        return {df['Name'].values[0]: df['area'].values[0], df['Name'].values[1]: df['area'].values[1]}
     elif len(df) == 3:
-        areas = df.area / df.area.sum()
-        areas = areas.loc[lambda df: df > 0.05]
-        if len(areas) == 3:
-            return {df['Name'].values[0]: areas.values[0], df['Name'].values[1]: areas.values[1], df['Name'].values[2]: areas.values[2]}
-        elif len(areas)  == 2:
-            remainder = 1 - areas.sum()
-            areas += remainder/2
-            return {df['Name'].values[0]: areas.values[0], df['Name'].values[1]: areas.values[1]}
-        elif len(areas) == 1:
+        df = df.assign(area = lambda df: df.area / df.area.sum())
+        df = df.loc[lambda df: df['area'] > 0.05]
+        if len(df) == 3:
+            return {df['Name'].values[0]: df['area'].values[0], df['Name'].values[1]: df['area'].values[1], df['Name'].values[2]: df['area'].values[2]}
+        elif len(df)  == 2:
+            remainder = 1 - df['area'].sum()
+            df['area'] += remainder/2
+            return {df['Name'].values[0]: df['area'].values[0], df['Name'].values[1]: df['area'].values[1]}
+        elif len(df) == 1:
             return {df['Name'].values[0]: 1}
         else:
             raise ValueError()
@@ -149,7 +149,6 @@ def la_weights(df):
         out[gsp_group] = weight
     return out
 
-
 la_elec = lsoa_elec.groupby('Local authority code').apply(la_weights).apply(pandas.Series)
 
 # %%
@@ -173,4 +172,4 @@ gsp_group_stats = pandas.concat([
 ], axis=1).reset_index(names="gsp_group")
 
 # %%
-gsp_group_stats.to_csv("../../outputs/GSP_Group_consumption_estimates.csv")
+gsp_group_stats.to_csv("../../../outputs/GSP_Group_consumption_estimates.csv")
