@@ -28,6 +28,16 @@ def single_day_consumption() -> pandas.Series:
     )
     return pandas.Series(1.0, index=index, name="consumption_kwh")
 
+@pytest.fixture
+def curve() -> TransmissionCostCurve:
+    """Curve with alpha=1.0 (residual only) so validation can be tested without a schedule."""
+    return TransmissionCostCurve(revenue=1000.0, alpha=1.0, beta=0.5)
+
+@pytest.fixture
+def valid_consumption() -> pandas.Series:
+    index = pandas.date_range("2025-01-01", periods=48, freq="30min", tz="Europe/London")
+    return pandas.Series(1.5, index=index)
+
 # ---------------------------------------------------------------------------
 # 1. Initialization and Parameter Validation
 # ---------------------------------------------------------------------------
@@ -156,11 +166,11 @@ def test_cost_curve_structure_and_additions(peak_schedule, single_day_consumptio
     )
     df = curve_model.calculate_cost_curve(single_day_consumption)
 
-    assert list(df.columns) == ["locational", "residual", "total"]
+    assert list(df.columns) == ["locational_p_per_kwh", "residual_p_per_kwh", "total_p_per_kwh"]
     assert len(df) == 48
     # Mathematical check: total == locational + residual across all rows
     pandas.testing.assert_series_equal(
-        df["total"], df["locational"] + df["residual"], check_names=False
+        df["total_p_per_kwh"], df["locational_p_per_kwh"] + df["residual_p_per_kwh"], check_names=False
     )
 
 
@@ -174,13 +184,13 @@ def test_peak_vs_off_peak_rates(peak_schedule, single_day_consumption):
     peak_period = "2023-01-01 17:00:00"
     off_peak_period = "2023-01-01 12:00:00"
 
-    assert math.isclose(df.loc[peak_period, "locational"], 10000.0)
-    assert df.loc[off_peak_period, "locational"] == 0.0
+    assert math.isclose(df.loc[peak_period, "locational_p_per_kwh"], 10000.0)
+    assert df.loc[off_peak_period, "locational_p_per_kwh"] == 0.0
 
     # Residual rate is volumetric flat across all settlement periods
     expected_residual = (400.0 * 0.5 * 100) / 48.0
-    assert math.isclose(df.loc[peak_period, "residual"], expected_residual)
-    assert math.isclose(df.loc[off_peak_period, "residual"], expected_residual)
+    assert math.isclose(df.loc[peak_period, "residual_p_per_kwh"], expected_residual)
+    assert math.isclose(df.loc[off_peak_period, "residual_p_per_kwh"], expected_residual)
 
 
 def test_override_residual_consumption_kwh(peak_schedule, single_day_consumption):
@@ -192,7 +202,7 @@ def test_override_residual_consumption_kwh(peak_schedule, single_day_consumption
     df = curve_model.calculate_cost_curve(
         single_day_consumption, residual_consumption_kwh=25000.0
     )
-    assert math.isclose(df["residual"].iloc[0], 1.0)
+    assert math.isclose(df["residual_p_per_kwh"].iloc[0], 1.0)
 
 
 def test_pure_residual_regime_without_schedule(single_day_consumption):
@@ -202,7 +212,76 @@ def test_pure_residual_regime_without_schedule(single_day_consumption):
     )
     df = curve_model.calculate_cost_curve(single_day_consumption)
 
-    assert (df["locational"] == 0.0).all()
+    assert (df["locational_p_per_kwh"] == 0.0).all()
     # All revenue (£500) recovered volumetrically over 48 kWh
     expected_rate = (500.0 * 100) / 48.0
-    assert math.isclose(df["residual"].iloc[0], expected_rate)
+    assert math.isclose(df["residual_p_per_kwh"].iloc[0], expected_rate)
+
+# ---------------------------------------------------------------------------
+# Validate consumption_kwh Object Usage
+# ---------------------------------------------------------------------------
+
+INVALID_TYPES = [
+    pytest.param([1.0, 2.0, 3.0], id="list"),
+    pytest.param({"2025-01-01": 1.5}, id="dict"),
+    pytest.param(100.0, id="float"),
+    pytest.param(None, id="none"),
+    pytest.param(
+        pandas.DataFrame(
+            {"kwh": [1.5]},
+            index=pandas.date_range("2025-01-01", periods=1, freq="30min"),
+        ),
+        id="dataframe",
+    ),
+]
+
+INVALID_INDEXES = [
+    pytest.param(pandas.Series([1.0, 2.0]), id="range_index"),
+    pytest.param(pandas.Series([1.0, 2.0], index=["2025-01-01", "2025-01-02"]), id="string_index"),
+    pytest.param(
+        pandas.Series([1.0, 2.0], index=pandas.period_range("2025-01-01", periods=2, freq="30min")),
+        id="period_index",
+    ),
+]
+
+EMPTY_SERIES = [
+    pytest.param(pandas.Series(dtype=float), id="empty_default_index"),
+    pytest.param(
+        pandas.Series(dtype=float, index=pandas.DatetimeIndex([], tz="Europe/London")),
+        id="empty_datetime_index",
+    ),
+]
+
+@pytest.mark.parametrize("method_name", ["calculate_peak_locational_rate", "calculate_cost_curve"])
+@pytest.mark.parametrize("bad_input", INVALID_TYPES)
+def test_non_series_raises_type_error(
+    curve: TransmissionCostCurve, method_name: str, bad_input: object
+) -> None:
+    method = getattr(curve, method_name)
+    with pytest.raises(TypeError, match="consumption_kwh must be a pandas Series"):
+        method(bad_input)
+
+@pytest.mark.parametrize("method_name", ["calculate_peak_locational_rate", "calculate_cost_curve"])
+@pytest.mark.parametrize("empty_series", EMPTY_SERIES)
+def test_empty_series_raises_value_error(
+    curve: TransmissionCostCurve, method_name: str, empty_series: pandas.Series
+) -> None:
+    method = getattr(curve, method_name)
+    with pytest.raises(ValueError, match="consumption_kwh cannot be empty"):
+        method(empty_series)
+
+@pytest.mark.parametrize("method_name", ["calculate_peak_locational_rate", "calculate_cost_curve"])
+@pytest.mark.parametrize("bad_index_series", INVALID_INDEXES)
+def test_non_datetime_index_raises_type_error(
+    curve: TransmissionCostCurve, method_name: str, bad_index_series: pandas.Series
+) -> None:
+    method = getattr(curve, method_name)
+    with pytest.raises(TypeError, match="consumption_kwh must have a DatetimeIndex"):
+        method(bad_index_series)
+
+def test_valid_series_passes_validation(
+    curve: TransmissionCostCurve, valid_consumption: pandas.Series
+) -> None:
+    assert curve.calculate_peak_locational_rate(valid_consumption) == 0.0
+    result = curve.calculate_cost_curve(valid_consumption)
+    assert len(result) == len(valid_consumption)

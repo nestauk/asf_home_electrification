@@ -8,11 +8,14 @@ from asf_home_electrification.tariffs.schedule import WeightingSchedule
 class TransmissionCostCurve:
     """Define a transmission cost curve.
     
+    A transmission cost curve must be defined with a schedule is there is any locational demand revenue,
+    (e.g. if alpha < 1). If there is only residual revenue a schedule is not required.
+
     Attributes:
         revenue: Total domestic transmission revenue in £.
         alpha: Balancing factor that directs cost recovery proportionately to the locational demand (alpha=0) or the residual (alpha=1).
         beta: Balancing factor that directs the residual to either a volumetric (0) or standing (1) charge.
-        schedule: WeightingSchedule that defines when peak periods occur.
+        schedule: Optional WeightingSchedule that defines when peak periods occur.
     """
     def __init__(self, revenue: float, alpha: float, beta: float, schedule: Optional[WeightingSchedule]=None) -> None:
         """Initialises a TransmissionCostCurve.
@@ -93,12 +96,36 @@ class TransmissionCostCurve:
         return self.residual_volumetric_revenue * 100 / total_consumption_kwh
 
     def get_weights(self, start_date: str, end_date: str) -> pandas.Series:
-        """Generates weights from schedule."""
+        """Generates weights from schedule defining peak periods."""
         if not self.schedule:
             raise ValueError(
                 "You have not specified a WeightingSchedule, pass one to 'schedule' on object creation."
                 )
         return self.schedule.generate_weights(start_date, end_date)
+
+    @staticmethod
+    def _validate_consumption_series(consumption_kwh: pandas.Series) -> None:
+        """Validate that consumption data is a non-empty Series with a DatetimeIndex.
+
+        Args:
+            consumption_kwh: Time-series of energy consumption values in kWh.
+
+        Raises:
+            TypeError: If `consumption_kwh` is not a pandas Series or lacks a DatetimeIndex.
+            ValueError: If `consumption_kwh` is empty.
+        """
+        if not isinstance(consumption_kwh, pandas.Series):
+            raise TypeError(
+                f"consumption_kwh must be a pandas Series, got {type(consumption_kwh).__name__}."
+                )
+
+        if consumption_kwh.empty:
+            raise ValueError("consumption_kwh cannot be empty.")
+
+        if not isinstance(consumption_kwh.index, pandas.DatetimeIndex):
+            raise TypeError(
+                f"consumption_kwh must have a DatetimeIndex, got {type(consumption_kwh.index).__name__}."
+                )
 
     def calculate_peak_locational_rate(self, consumption_kwh: pandas.Series, weights: Optional[pandas.Series]=None) -> float:
         """Calculates the unit rate applied to active settlement periods in p/kWh.
@@ -111,8 +138,8 @@ class TransmissionCostCurve:
             consumption_kwh: Half-hourly consumption volumes as a pandas Series.
             weights: Optionally provide precomputed weights.
         """
-        if consumption_kwh.empty:
-            raise ValueError("consumption_kwh cannot be empty.")
+        # validate the consumption series
+        self._validate_consumption_series(consumption_kwh)
         
         if self.locational_revenue <= 0.0:
             # Short cut calculations where there is no locational_revenue
@@ -149,9 +176,8 @@ class TransmissionCostCurve:
             residual_consumption_kwh: optional total consumption value used for volumetric residual.
             weights: optionally provide pre-computed weights.
         """
-
-        if consumption_kwh.empty:
-            raise ValueError("consumption_kwh cannot be empty.")
+        # validate the consumption series
+        self._validate_consumption_series(consumption_kwh)
 
         if self.locational_revenue > 0:
             if weights is None:
@@ -172,10 +198,10 @@ class TransmissionCostCurve:
 
         curve = pandas.DataFrame(
             {
-                "locational": locational_series,
-                "residual": residual_rate,
+                "locational_p_per_kwh": locational_series,
+                "residual_p_per_kwh": residual_rate,
             },
             index=consumption_kwh.index,
         )
-        curve["total"] = curve["locational"] + curve["residual"]
+        curve["total_p_per_kwh"] = curve["locational_p_per_kwh"] + curve["residual_p_per_kwh"]
         return curve

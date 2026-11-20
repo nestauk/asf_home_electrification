@@ -8,7 +8,7 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.19.6
 #   kernelspec:
-#     display_name: asf-home-electrification (3.13.16)
+#     display_name: asf-home-electrification (3.13.x)
 #     language: python
 #     name: python3
 # ---
@@ -58,7 +58,7 @@ South Western,_L,2.071095,1360319.6389275542,192272.5917042872,4406.482141047758
 nhh_demand_charge = pandas.read_csv(io.StringIO(nhh_text))
 
 # %%
-# Get profiles 1 and 2 which cover 
+# Get profiles 1 and 2 which cover
 # tnuos years are financial year.
 profile1 = (pandas.read_csv("../../../inputs/Default_Period_Profile_Class_Coefficient_380.csv", parse_dates=['Settlement Date'], date_format='%d/%m/%Y')
             .loc[lambda df: (df['Profile Class ID'] == 1) & (df['Settlement Date'] >= '2026-04-01'), :])
@@ -101,7 +101,7 @@ else:
 f, ax = pyplot.subplots()
 
 for cc in ccs:
-    cc.groupby(cc.index.hour).mean()["total"].plot(ax=ax)
+    cc.groupby(cc.index.hour).mean()["total_p_per_kwh"].plot(ax=ax)
 
 ax.set_ylabel("Transmission Costs (p/kWh)")
 ax.set_xlabel("Time of Day")
@@ -141,7 +141,7 @@ else:
 f, ax = pyplot.subplots()
 
 for cc in ccs:
-    cc.groupby(cc.index.hour).mean()["total"].plot(ax=ax)
+    cc.groupby(cc.index.hour).mean()["total_p_per_kwh"].plot(ax=ax)
 
 ax.set_ylabel("Transmission Costs (p/kWh)")
 ax.set_xlabel("Time of Day")
