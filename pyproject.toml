@@ -13,10 +13,13 @@ authors = [{ name = "Nesta" }]
 license = { text = "MIT" }
 readme = "README.md"
 requires-python = "==3.13.*"
-dependencies = []
+dependencies = [
+    "matplotlib>=3.11.2",
+    "pandas>=3.1.0",
+]
 
 [dependency-groups]
-dev = ["ipykernel", "jupytext", "nbstripout", "ruff", "pre-commit"]
+dev = ["ipykernel", "jupytext", "nbstripout", "ruff", "pre-commit", "pytest"]
 
 [tool.uv]
 package = true
@@ -26,6 +29,16 @@ package = true
 mapping = 2
 sequence = 4
 offset = 2
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-v --strict-markers"
+markers = [
+    "schedule: tests related to WeightingSchedule objects.",
+    "cost_curve: tests related to cost curve objects."
+]
 
 [tool.ruff]
 line-length = 120
@@ -56,6 +69,7 @@ convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "E402", "D104"]
+"tests/*" = ["ANN"]  # Skip strict type annotation checks inside test files
 
 [tool.ruff.format]
 docstring-code-format = true
