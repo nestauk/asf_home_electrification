@@ -34,6 +34,30 @@ day = schedule.generate_weights(start_date='2026-11-03', end_date='2026-11-03')
 day.plot()
 
 # %%
+# Create a simple schedule - midnight end time
+schedule = SimplePeakSchedule(peak_start_time="16:00", peak_end_time="00:00")
+
+# %%
+# generate weights for a given period
+day = schedule.generate_weights(start_date='2026-11-03', end_date='2026-11-03')
+
+# %%
+# Plot the schedule
+day.plot()
+
+# %%
+# Create a simple schedule - all day peak
+schedule = SimplePeakSchedule(peak_start_time="00:00", peak_end_time="00:00")
+
+# %%
+# generate weights for a given period
+day = schedule.generate_weights(start_date='2026-11-03', end_date='2026-11-03')
+
+# %%
+# Plot the schedule
+day.plot()
+
+# %%
 # Create a weekday only schedule
 schedule = SimplePeakSchedule(peak_start_time="16:00", peak_end_time="19:00", weekdays_only=True)
 

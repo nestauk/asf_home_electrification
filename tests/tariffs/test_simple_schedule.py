@@ -107,15 +107,27 @@ def test_dst_spring_forward():
     schedule = SimplePeakSchedule("08:00", "10:00")
     # 2026-03-29 is the UK spring transition date
     weights = schedule.generate_weights("2026-03-29", "2026-03-29")
-    assert len(weights) == 46
+    formatted_times = weights.index.strftime("%H:%M").tolist()
 
+    assert len(weights) == 46
+    assert "01:00" not in formatted_times
+    assert "01:30" not in formatted_times
 
 def test_dst_fall_back():
     """UK clocks fall back on the last Sunday of October (50 half-hours)."""
     schedule = SimplePeakSchedule("08:00", "10:00")
     # 2026-10-25 is the UK autumn transition date
     weights = schedule.generate_weights("2026-10-25", "2026-10-25")
+
     assert len(weights) == 50
+    
+    for expected in [
+        "2026-10-25 01:00:00+01:00",
+        "2026-10-25 01:30:00+01:00",
+        "2026-10-25 01:00:00+00:00",
+        "2026-10-25 01:30:00+00:00",
+       ]:
+        assert pandas.Timestamp(expected) in weights.index
 
 # ============================================================================
 # 4. Representations

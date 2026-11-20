@@ -5,6 +5,13 @@ import pandas
 
 
 class WeightingSchedule(ABC):
+    """Abstract base class for generating half-hourly settlement period weights.
+
+    Subclasses define specific weighting methodologies (e.g., flat, seasonal, or
+    profile-based) to distribute or scale quantities across 30-minute settlement
+    periods over a given date range. Concrete implementations must also provide
+    explicit string representations for serialization, logging, and display.
+    """
     @abstractmethod
     def generate_weights(self, start_date: str, end_date: str) -> pandas.Series:
         """Returns a Series object of half-hourly settlement periods from start_date to end_date."""
@@ -26,7 +33,7 @@ class SimplePeakSchedule(WeightingSchedule):
         peak_start_time: Start of peak (inclusive) as formatted time string (%H:%M)
         peak_end_time: End of peak (exclusive) as formatted time string (%H:%M)
         weekdays_only: If True, weights are 0 on weekends. Default: False.
-        winter_only: If True, weights are 0 outside of winter_start and winter_stop. Default: False.
+        winter_only: If True, weights are 0 outside of winter_start and winter_end. Default: False.
         winter_start: Month to start winter peak (inclusive) as two digit number string '01' (Jan) to '12' (Dec)
         winter_end: Month to end winter peak (inclusive) as two digit number '01' (Jan) to '12' (Dec)
     """
@@ -47,6 +54,24 @@ class SimplePeakSchedule(WeightingSchedule):
         self.winter_start = winter_start
         self.winter_end = winter_end
 
+    @staticmethod
+    def _validate_window(start: time, end: time) -> None:
+        """Validate that the peak end time occurs after the peak start time.
+
+        Treats an end time of 00:00 as midnight at the end of the day,
+        allowing peak windows to run through the end of the day from any start time.
+
+        Args:
+            start: Inclusive start time of the peak window.
+            end: Exclusive end time of the peak window.
+
+        Raises:
+            ValueError: If `end` is not `00:00` and is earlier than or equal to `start`.
+        """
+        # Treat 00:00 as 24:00 (end of day), which is later than any start time
+        if end != time(0, 0) and end <= start:
+            raise ValueError("peak_end_time must be later than peak_start_time.")
+
     @property
     def peak_start_time(self) -> time:
         return self._peak_start_time
@@ -61,7 +86,11 @@ class SimplePeakSchedule(WeightingSchedule):
         if parsed_time.minute not in (0,30):
             raise ValueError(f"peak_start_time must be on either the hour or half-hour, not '{value}'.")
 
-        self._peak_start_time = time(parsed_time.hour, parsed_time.minute)
+        new_start = time(parsed_time.hour, parsed_time.minute)
+        if hasattr(self, "_peak_end_time"):
+            self._validate_window(new_start, self._peak_end_time)
+
+        self._peak_start_time = new_start
 
     @property
     def peak_end_time(self) -> time:
@@ -77,14 +106,10 @@ class SimplePeakSchedule(WeightingSchedule):
         if parsed_time.minute not in (0,30):
             raise ValueError(f"peak_end_time must be on either the hour or half-hour, not '{value}'.")
 
-        if parsed_time <= self.peak_start_time:
-            if parsed_time == time(0,0) and self.peak_start_time == time(23,30):
-                # Handle special case in which you specifically want a peak from 23:30 to 00:00
-                pass
-            else:
-                raise ValueError("peak_end_time must be later than peak_start_time.")
+        new_end = time(parsed_time.hour, parsed_time.minute)
+        self._validate_window(self.peak_start_time, new_end)
 
-        self._peak_end_time = time(parsed_time.hour, parsed_time.minute)
+        self._peak_end_time = new_end
 
     @property
     def winter_start(self) -> str:
