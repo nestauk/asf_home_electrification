@@ -13,7 +13,15 @@ authors = [{ name = "Nesta" }]
 license = { text = "MIT" }
 readme = "README.md"
 requires-python = "==3.13.*"
-dependencies = []
+dependencies = [
+    "fsspec>=2026.9.0",
+    "matplotlib>=3.11.2",
+    "numpy>=2.5.4",
+    "pandas>=3.1.1",
+    "pytest>=9.2.0",
+    "requests>=2.34.2",
+    "s3fs>=2026.9.0",
+]
 
 [dependency-groups]
 dev = ["ipykernel", "jupytext", "nbstripout", "ruff", "pre-commit"]
@@ -46,6 +54,7 @@ ignore = [
     "S101", # Warns about assert being removed when compiled
     "ANN002", # Warns about missing type annotation on *args
     "ANN003", # Warns about missing type annotation on **kwargs
+    "C901",
 ]
 
 [tool.ruff.lint.isort]
@@ -56,7 +65,17 @@ convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "E402", "D104"]
+"tests/*" = ["ANN"]  # Skip strict type annotation checks inside test files
 
 [tool.ruff.format]
 docstring-code-format = true
 docstring-code-line-length = "dynamic"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "dwelling: tests for the Dwelling class",
+    "thermostat: tests for the Thermostat class",
+    "hot_water: tests for the HotWaterTank model",
+    "heating: tests for the HeatingSystem model"
+]
