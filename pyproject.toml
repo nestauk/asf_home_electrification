@@ -14,12 +14,15 @@ license = { text = "MIT" }
 readme = "README.md"
 requires-python = "==3.13.*"
 dependencies = [
-    "matplotlib>=3.11.2",
-    "pandas>=3.1.0",
+    "fsspec>=2026.9.0",
     "geopandas>=1.2.0",
+    "matplotlib>=3.11.2",
+    "numpy>=2.5.4",
     "pandas>=3.1.0",
     "python-calamine>=0.9.0",
+    "pyyaml",
     "requests>=2.34.2",
+    "s3fs>=2026.9.0",
 ]
 
 [dependency-groups]
@@ -41,7 +44,11 @@ pythonpath = ["."]
 addopts = "-v --strict-markers"
 markers = [
     "schedule: tests related to WeightingSchedule objects.",
-    "cost_curve: tests related to cost curve objects."
+    "cost_curve: tests related to cost curve objects.",
+    "dwelling: tests for the Dwelling class",
+    "thermostat: tests for the Thermostat class",
+    "hot_water: tests for the HotWaterTank model",
+    "heating: tests for the HeatingSystem model",
 ]
 
 [tool.ruff]
